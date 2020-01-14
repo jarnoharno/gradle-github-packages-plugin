@@ -1,6 +1,8 @@
 plugins {
     id 'java-gradle-plugin'
     id 'groovy'
+    id 'com.gradle.plugin-publish' version '0.10.1'
+    id 'maven-publish'
 }
 
 group = 'com.jarnoharno'
@@ -11,14 +13,41 @@ repositories {
 }
 
 dependencies {
+    implementation localGroovy()
     implementation group: 'org.yaml', name: 'snakeyaml', version: '1.25'
+}
+
+pluginBundle {
+    website = 'https://github.com/jarnoharno/gradle-github-packages-plugin'
+    vcsUrl = 'https://github.com/jarnoharno/gradle-github-packages-plugin.git'
+    tags = ['repository', 'github', 'github-packages', 'dependency', 'publishing', 'maven']
 }
 
 gradlePlugin {
     plugins {
         githubPackages {
             id = 'com.jarnoharno.github-packages'
+            displayName = 'Plugin for Github Packages'
+            description = 'Use Github Packages repositories with credentials from your hub config'
             implementationClass = 'com.jarnoharno.gradle.GithubPackagesPlugin'
+        }
+    }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            name = 'GithubPackages'
+            url = uri('https://maven.pkg.github.com/jarnoharno/packages')
+            credentials {
+                username = project.findProperty('githubPackages.username')
+                password = project.findProperty('githubPackages.accessToken')
+            }
         }
     }
 }
