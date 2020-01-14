@@ -6,10 +6,12 @@ import org.gradle.api.GradleScriptException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+import org.gradle.api.artifacts.repositories.PasswordCredentials
 import org.yaml.snakeyaml.Yaml
 
 class GithubPackagesExtension {
 
+    String name = 'GithubPackages'
     String repository
     String username
     String accessToken
@@ -18,6 +20,10 @@ class GithubPackagesExtension {
     GithubPackagesExtension(Project project) {
         this.project = project
     }
+
+    @Lazy String resolvedName = {
+        project.findProperty('githubPackages.name') as String ?: name
+    } ()
 
     @Lazy String resolvedUsername = {
         project.findProperty('githubPackages.username') as String
@@ -63,20 +69,37 @@ class GithubPackagesPlugin implements Plugin<Project> {
     @Override
     void apply(Project project) {
         def configuration = project.extensions.create('githubPackages', GithubPackagesExtension, project)
-        project.ext.githubPackagesConfiguration = configuration
-        project.ext.githubPackages = { String repository = null, String username = null, String accessToken = null ->
-            def resolvedUrl = repository ? GithubPackagesExtension.repositoryUrl(repository) : configuration.resolvedUrl
+        def githubPackagesUrl = { String repository = null ->
+            repository ? GithubPackagesExtension.repositoryUrl(repository) : configuration.resolvedUrl
+        }
+        def githubPackagesCredentials = { String username = null, String accessToken = null ->
             def resolvedUsername = username ?: configuration.resolvedUsername
             def resolvedAccessToken = accessToken ?: configuration.resolvedAccessToken
-            return new Action<MavenArtifactRepository>() {
-                void execute(MavenArtifactRepository repo) {
-                    repo.url = project.uri(resolvedUrl)
-                    repo.credentials {
-                        delegate.username = resolvedUsername
-                        delegate.password = resolvedAccessToken
-                    }
+            return new Action<? super PasswordCredentials>() {
+
+                @Override
+                void execute(Object credentials) {
+                    credentials.username = resolvedUsername
+                    credentials.password = resolvedAccessToken
                 }
             }
         }
+        def githubPackages = { String repository = null, String username = null, String accessToken = null ->
+            def resolvedName = configuration.resolvedName
+            def resolvedUrl = githubPackagesUrl(repository)
+            return new Action<? super MavenArtifactRepository>() {
+
+                @Override
+                void execute(Object repo) {
+                    repo.name = resolvedName
+                    repo.url = project.uri(resolvedUrl)
+                    repo.credentials githubPackagesCredentials(username, accessToken)
+                }
+            }
+        }
+        project.ext.githubPackagesConfiguration = configuration
+        project.ext.githubPackages = githubPackages
+        project.ext.githubPackagesUrl = githubPackagesUrl
+        project.ext.githubPackagesCredentials = githubPackagesCredentials
     }
 }
