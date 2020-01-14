@@ -1,0 +1,24 @@
+plugins {
+    id 'java-gradle-plugin'
+    id 'groovy'
+}
+
+group = 'com.jarnoharno'
+version = '1.0.0'
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    implementation group: 'org.yaml', name: 'snakeyaml', version: '1.25'
+}
+
+gradlePlugin {
+    plugins {
+        githubPackages {
+            id = 'com.jarnoharno.github-packages'
+            implementationClass = 'com.jarnoharno.gradle.GithubPackagesPlugin'
+        }
+    }
+}
