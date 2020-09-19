@@ -31,6 +31,7 @@ class GithubPackagesExtension {
     @Lazy String resolvedUsername = {
         project.findProperty('githubPackages.username') as String
                 ?: username
+                ?: project.findProperty('gpr.user') as String
                 ?: System.getenv("GITHUB_ACTOR")
                 ?: ghConfig['user'] as String
                 ?: hubConfig['user'] as String
@@ -39,6 +40,7 @@ class GithubPackagesExtension {
     @Lazy String resolvedAccessToken = {
         project.findProperty('githubPackages.accessToken') as String
                 ?: accessToken
+                ?: project.findProperty('gpr.key') as String
                 ?: System.getenv("GITHUB_TOKEN")
                 ?: ghConfig['oauth_token'] as String
                 ?: hubConfig['oauth_token'] as String
