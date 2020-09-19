@@ -9,6 +9,8 @@ import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.api.artifacts.repositories.PasswordCredentials
 import org.yaml.snakeyaml.Yaml
 
+import java.util.function.Function
+
 class GithubPackagesExtension {
 
     String name = 'GithubPackages'
@@ -22,38 +24,60 @@ class GithubPackagesExtension {
     }
 
     @Lazy String resolvedName = {
-        project.findProperty('githubPackages.name') as String ?: name
+        project.findProperty('githubPackages.name') as String
+                ?: name
     } ()
 
     @Lazy String resolvedUsername = {
         project.findProperty('githubPackages.username') as String
-                ?: username ?: hubConfig['user'] as String
+                ?: username
+                ?: System.getenv("GITHUB_ACTOR")
+                ?: ghConfig['user'] as String
+                ?: hubConfig['user'] as String
     } ()
 
     @Lazy String resolvedAccessToken = {
         project.findProperty('githubPackages.accessToken') as String
-                ?: accessToken ?: hubConfig['oauth_token'] as String
+                ?: accessToken
+                ?: System.getenv("GITHUB_TOKEN")
+                ?: ghConfig['oauth_token'] as String
+                ?: hubConfig['oauth_token'] as String
     } ()
 
     @Lazy String resolvedRepository = {
         project.findProperty('githubPackages.repository') as String
-                ?: repository ?: throwUndefinedException('repository')
+                ?: repository
+                ?: throwUndefinedException('repository')
     } ()
 
-    @Lazy String resolvedUrl = { repositoryUrl(resolvedRepository) } ()
+    @Lazy String resolvedUrl = {
+        repositoryUrl(resolvedRepository)
+    } ()
 
     @Lazy hubConfig = {
-        def userHome = System.getProperty("user.home")
-        def hubFile = new File("$userHome/.config/hub")
-        try {
-            hubFile.withInputStream { input ->
-                def yaml = new Yaml().load(input)
-                return yaml['github.com'][0]
-            }
-        } catch (Throwable e) {
-            throw new GradleScriptException("Unable to read ${hubFile}", e)
+        yamlConfig(".config/hub") {
+            it['github.com'][0]
         }
     } ()
+
+    @Lazy ghConfig = {
+        yamlConfig(".config/gh/hosts.yml") {
+            it['github.com']
+        }
+    } ()
+
+    static def yamlConfig(String userPath, Function<Object, Object> extractor) {
+        def userHome = System.getProperty("user.home")
+        def file = new File("$userHome/$userPath")
+        try {
+            file.withInputStream { input ->
+                def yaml = new Yaml().load(input)
+                return extractor.apply(yaml)
+            }
+        } catch (Throwable e) {
+            throw new GradleScriptException("Unable to read ${file}", e)
+        }
+    }
 
     static def throwUndefinedException(String variable) {
         throw new GradleException("${variable} is undefined")
